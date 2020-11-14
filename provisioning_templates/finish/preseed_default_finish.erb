@@ -15,10 +15,12 @@ oses:
 %>
 
 <% subnet = @host.subnet -%>
-<% if subnet.respond_to?(:dhcp_boot_mode?) -%>
-<% dhcp = subnet.dhcp_boot_mode? && !@static -%>
+<% if @static -%>
+  <%- dhcp = false -%>
+<% elsif subnet.nil? -%>
+  <%- dhcp = true -%>
 <% else -%>
-<% dhcp = !@static -%>
+  <%- dhcp = subnet.dhcp_boot_mode? -%>
 <% end -%>
 <% unless dhcp -%>
 # host and domain name need setting as these values may have come from dhcp if pxe booting
@@ -29,6 +31,11 @@ oses:
 /bin/hostname  <%= @host.shortname %>.<%= @host.domain %>
 <% end -%>
 
+<% if @host.provision_method == 'image' && root_pass.present? -%>
+# Install the root password
+echo 'root:<%= root_pass -%>' | /usr/sbin/chpasswd -e
+
+<% end -%>
 <%= snippet_if_exists(template_name + " custom snippet") %>
 <% if host_enc['parameters']['realm'] && @host.realm && @host.realm.realm_type == 'FreeIPA' -%>
 <%= snippet 'freeipa_register' %>
@@ -43,7 +50,7 @@ oses:
 <% end -%>
 
 <% if puppet_enabled %>
-<% if host_param_true?('enable-puppetlabs-pc1-repo') || host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
+<% if host_param_true?('enable-puppetlabs-repo') || host_param_true?('enable-puppetlabs-puppet6-repo') || host_param_true?('enable-puppetlabs-puppet5-repo') -%>
 <%= snippet 'puppetlabs_repo' %>
 <% end -%>
 <%= snippet 'puppet_setup' %>
@@ -56,3 +63,4 @@ oses:
 <%= snippet 'preseed_networking_setup' %>
 <%= snippet 'efibootmgr_netboot' %>
 <%= snippet 'built' %>
+<%= snippet 'schedule_reboot' -%>
